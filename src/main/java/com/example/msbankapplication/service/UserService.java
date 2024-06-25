@@ -1,13 +1,18 @@
 package com.example.msbankapplication.service;
 
 import com.example.msbankapplication.dao.entity.AccountEntity;
+import com.example.msbankapplication.dao.entity.TransactionEntity;
 import com.example.msbankapplication.dao.entity.UserEntity;
 import com.example.msbankapplication.dao.repository.AccountRepository;
+import com.example.msbankapplication.dao.repository.TransactionRepository;
 import com.example.msbankapplication.dao.repository.UserRepository;
+import com.example.msbankapplication.exceptions.AccountNotUserException;
+import com.example.msbankapplication.exceptions.NoBalance;
 import com.example.msbankapplication.exceptions.NotFound;
 import com.example.msbankapplication.exceptions.SameCurrencyException;
 import com.example.msbankapplication.mapper.AccountMapper;
 import com.example.msbankapplication.mapper.UserMapper;
+import com.example.msbankapplication.model.PaymentDto;
 import com.example.msbankapplication.model.UserRequestDto;
 import com.example.msbankapplication.model.UserResponseDto;
 import jakarta.transaction.Transactional;
@@ -15,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -23,6 +29,7 @@ import java.util.List;
 public class UserService {
     private final UserRepository userRepository;
     private final AccountRepository accountRepository;
+    private final TransactionRepository transactionRepository;
     private final UserMapper userMapper;
 
     public List<UserResponseDto> getAllUsers() {
@@ -91,19 +98,78 @@ public class UserService {
 
         UserEntity userEntity = findUser(userId);
         AccountEntity accountEntity = findAccount(accountId);
+
+        accountFreeCheck(accountEntity);
         if (!checkCurrencyAccount(userEntity, accountEntity)) {
             accountEntity.setAccountId(createAccountId(userEntity, accountEntity));
-
-            List<AccountEntity> accountEntities = userEntity.getAccounts();
-            accountEntities.add(accountEntity);
-            userEntity.setAccounts(accountEntities);
+            accountEntity.setUser(userEntity);
 
             userRepository.save(userEntity);
+            accountRepository.save(accountEntity);
             log.info("ActionLog.assignAccountToUser.end user {} account {}", userId, accountId);
         } else {
             throw new SameCurrencyException("SAME_CURRENCY_ACCOUNTS", "Error ActionLog.assignAccountToUser user {" + userId + "}" + " account {" + accountId + "}");
         }
 
+    }
+
+    public void cardToCard(PaymentDto paymentDto) {
+        log.info("ActionLog.cardToCard.start payment {}", paymentDto);
+        String fromAccNumb = paymentDto.getFromAccount();
+        String toAccNumb = paymentDto.getToAccount();
+        Double amount = paymentDto.getAmount();
+
+        AccountEntity fromAccount = findAccount(fromAccNumb);
+        AccountEntity toAccount = findAccount(toAccNumb);
+
+        if (!(checkRelatedUser(fromAccount) && checkRelatedUser(toAccount))) {
+            throw new AccountNotUserException("ACCOUNT_DOES_NOT_HAVE_USER", "Error ActionLog.cardToCard payment {" + paymentDto + "}");
+        }
+        checkBalanceAndAmount(fromAccount, amount);
+
+        if (!(fromAccount.getUser().equals(toAccount.getUser()))) {
+            if (fromAccount.getCurrency().equals(toAccount.getCurrency())) {
+                purchaseCardToCard(0.1, fromAccount, toAccount, amount);
+            } else {
+                purchaseCardToCard(1D, fromAccount, toAccount, amount);
+            }
+        } else {
+            purchaseCardToCard(0D, fromAccount, toAccount, amount);
+        }
+        log.info("ActionLog.cardToCard.end payment {}", paymentDto);
+    }
+
+    private void checkBalanceAndAmount(AccountEntity fromCard, Double amount) {
+        if (fromCard.getBalance() < amount) {
+            throw new NoBalance("NOT_ENOUGH_BALANCE", "Error ActionLog.checkBalanceAndAmount");
+        }
+    }
+
+    @Transactional
+    public void purchaseCardToCard(Double commissionRate, AccountEntity fromCard, AccountEntity toCard, Double amount) {
+        Double commission = amount * commissionRate / 100;
+        Double amountWithCommission = amount + commission;
+
+        fromCard.setBalance(fromCard.getBalance() - amountWithCommission);
+        toCard.setBalance(toCard.getBalance() + amount);
+        accountRepository.save(fromCard);
+        accountRepository.save(toCard);
+
+        saveTransaction(fromCard,toCard,amount,commission);
+    }
+
+    private void saveTransaction(AccountEntity fromCard,AccountEntity toCard,Double amount,Double commission){
+        TransactionEntity transactionEntity=new TransactionEntity();
+        transactionEntity.setFromAccount(fromCard.getAccNumb());
+        transactionEntity.setToAccount(toCard.getAccNumb());
+        transactionEntity.setAmount(amount);
+        transactionEntity.setCommission(commission);
+        transactionEntity.setPurchaseDate(LocalDate.now());
+        transactionRepository.save(transactionEntity);
+    }
+
+    private boolean checkRelatedUser(AccountEntity account) {
+        return account.getAccountId() != null;
     }
 
     private String createAccountId(UserEntity userEntity, AccountEntity accountEntity) {
@@ -121,6 +187,12 @@ public class UserService {
         return has;
     }
 
+    private void accountFreeCheck(AccountEntity accountEntity) {
+        if (accountEntity.getAccountId() != null) {
+            throw new AccountNotUserException("ACCOUNT_HAS_USER", "Error ActionLog.accountFreeCheck {" + accountEntity + "}");
+        }
+    }
+
     private UserEntity findUser(Long userId) {
         UserEntity userEntity = userRepository.findById(userId).
                 orElseThrow(() -> new NotFound("USER_NOT_FOUND", "Error ActionLog.findUser userId {" + userId + "}"));
@@ -130,6 +202,11 @@ public class UserService {
     private AccountEntity findAccount(Long accountId) {
         AccountEntity accountEntity = accountRepository.findById(accountId).
                 orElseThrow(() -> new NotFound("ACCOUNT_NOT_FOUND", "Error ActionLog.findAccount account {" + accountId + "}"));
+        return accountEntity;
+    }
+    private AccountEntity findAccount(String accountNumb){
+        AccountEntity accountEntity = accountRepository.findByAccNumb(accountNumb).
+                orElseThrow(() -> new NotFound("ACCOUNT_NOT_FOUND", "Error ActionLog.findAccount account {" + accountNumb + "}"));
         return accountEntity;
     }
 

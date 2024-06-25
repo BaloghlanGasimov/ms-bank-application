@@ -1,5 +1,6 @@
 package com.example.msbankapplication.controller;
 
+import com.example.msbankapplication.model.PaymentDto;
 import com.example.msbankapplication.model.UserRequestDto;
 import com.example.msbankapplication.model.UserResponseDto;
 import com.example.msbankapplication.service.UserService;
@@ -29,6 +30,11 @@ public class UserController {
     @PostMapping
     public void saveUser(@RequestBody @Valid UserRequestDto userRequestDto){
         userService.saveUser(userRequestDto);
+    }
+
+    @PostMapping("/payment")
+    public void cardToCard(@RequestBody PaymentDto paymentDto){
+        userService.cardToCard(paymentDto);
     }
 
     @PutMapping("/{userId}")

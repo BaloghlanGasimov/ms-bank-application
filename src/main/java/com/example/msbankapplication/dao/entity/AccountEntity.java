@@ -23,6 +23,9 @@ public class AccountEntity {
     private String accNumb;
     @Enumerated(EnumType.STRING)
     private CurrencyType currency;
-    private Double amount;
+    private Double balance;
+    @ManyToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "user_id")
+    private UserEntity user;
 
 }

@@ -1,5 +1,7 @@
 package com.example.msbankapplication.controller;
 
+import com.example.msbankapplication.exceptions.AccountNotUserException;
+import com.example.msbankapplication.exceptions.NoBalance;
 import com.example.msbankapplication.exceptions.NotFound;
 import com.example.msbankapplication.exceptions.SameCurrencyException;
 import com.example.msbankapplication.model.ExceptionDto;
@@ -16,14 +18,28 @@ public class ErrorHandler {
 
     @ExceptionHandler(NotFound.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ExceptionDto handler(NotFound e){
+    public ExceptionDto handler(NotFound e) {
         log.error(e.getLogMessage());
         return new ExceptionDto(e.getErrorMessage());
     }
 
     @ExceptionHandler(SameCurrencyException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ExceptionDto handler(SameCurrencyException e){
+    public ExceptionDto handler(SameCurrencyException e) {
+        log.error(e.getLogMessage());
+        return new ExceptionDto(e.getErrorMessage());
+    }
+
+    @ExceptionHandler(AccountNotUserException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ExceptionDto handler(AccountNotUserException e) {
+        log.error(e.getLogMessage());
+        return new ExceptionDto(e.getErrorMessage());
+    }
+
+    @ExceptionHandler(NoBalance.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ExceptionDto handler(NoBalance e) {
         log.error(e.getLogMessage());
         return new ExceptionDto(e.getErrorMessage());
     }

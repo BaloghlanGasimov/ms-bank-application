@@ -14,5 +14,6 @@ public class AccountDto {
     private String accNumb;
     @NotNull
     private CurrencyType currency;
-    private Double amount;
+    private Double balance;
+
 }

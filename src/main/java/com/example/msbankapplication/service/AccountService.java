@@ -60,8 +60,8 @@ public class AccountService {
         if(accountDto.getAccountId()!=null){
             accountEntity.setAccountId(accountDto.getAccountId());
         }
-        if(accountDto.getAmount()!=null){
-            accountEntity.setAmount(accountDto.getAmount());
+        if(accountDto.getBalance()!=null){
+            accountEntity.setBalance(accountDto.getBalance());
         }
         if(accountDto.getCurrency()!=null){
             accountEntity.setCurrency(accountDto.getCurrency());

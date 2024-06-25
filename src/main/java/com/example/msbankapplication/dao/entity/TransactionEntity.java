@@ -7,22 +7,20 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
 @Entity
-@Table(name = "users")
-public class UserEntity {
+@Table(name = "transactions")
+public class TransactionEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String name;
-    private String surname;
-    private String finNo;
-    private LocalDate birthDate;
-    @OneToMany(mappedBy = "user",cascade = CascadeType.ALL)
-    private List<AccountEntity> accounts;
+    private String fromAccount;
+    private String toAccount;
+    private Double amount;
+    private Double commission;
+    private LocalDate purchaseDate;
 }
